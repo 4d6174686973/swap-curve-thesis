@@ -1,10 +1,7 @@
-# flake8: noqa
+# general libraries
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-
-
-import plotly.io as pio
 
 
 # ------------------------------------------------------------------- UTILS
@@ -24,24 +21,6 @@ def line_intersection(line1, line2):
     x = det(d, xdiff) / div
     y = det(d, ydiff) / div
     return x, y
-
-def getDailyVolAbs(close,span0=100):
-    # daily vol, reindexed to close
-    df0 = close.index.searchsorted(close.index-pd.Timedelta(days=1))
-    df0 = df0[df0>0]
-    df0 = pd.Series(close.index[df0-1], index=close.index[close.shape[0]-df0.shape[0]:])
-    df0 = close.loc[df0.index]/close.loc[df0.values].values-1 # daily returns
-    df0 = df0.ewm(span=span0).std()
-    return df0
-
-def getDailyVolRel(close,span0=100):
-    # daily vol, reindexed to close
-    df0 = close.index.searchsorted(close.index-pd.Timedelta(days=1))
-    df0 = df0[df0>0]
-    df0 = pd.Series(close.index[df0-1], index=close.index[close.shape[0]-df0.shape[0]:])
-    df0 = close.loc[df0.index]/close.loc[df0.values].values-1 # daily returns
-    df0 = df0.ewm(span=span0).std()
-    return df0
 
 
 # ------------------------------------------------------------------- FRACDIFF
@@ -137,9 +116,6 @@ def getMinFFD(df0):
         dList.append(dOpt)
 
     return statsList, dList
-    
-
-# ------------------------------------------------------------------- STRUCTURAL BREAKS
 
 
 # ------------------------------------------------------------------- CLUSTERING
@@ -267,7 +243,6 @@ def varInfoMat(X, norm=False):
 
 
 # ------------------------------------------------------------------- DENOISING
-
 
 def mpPDF(var,q,pts):
     # Marcenko-Pastur pdf
@@ -511,7 +486,7 @@ def getBins(events, close, trgt):
     out['bin'].loc[np.abs(out['move']) <= trgt] = 0 # time barrier touch
     return out
 
-# ------------------------------------------------------------------- SAMPLE WEIGHTS
+# ------------------------------------------------------------------- AVERAGE UNIQUENESS
 
 def mpNumCoEvents(closeIdx,t1,molecule):
     '''
@@ -539,7 +514,7 @@ def mpSampleTW(t1,numCoEvents,molecule):
 
 
 
-# ------------------------------------------------------------------- MDA
+# ------------------------------------------------------------------- PURGING CROSS VALIDATION
 
 from sklearn.metrics import log_loss
 from sklearn.model_selection._split import KFold
@@ -571,7 +546,7 @@ class PurgedKFold(KFold):
             train_indices=np.concatenate((train_indices,indices[maxT1Idx+mbrg:]))
             yield train_indices,test_indices
 
-# ------------------------------------------------------------------- MDA
+# ------------------------------------------------------------------- FEATURE IMPORTANCE
 
 
 def featImpMDI(ﬁt,featNames):
@@ -662,102 +637,3 @@ def featImpMDA_Clustered(clf,X,y,clstrs,n_splits, t1):
     imp.index = ['C_'+str(i) for i in imp.index]
     return imp
 
-# ------------------------------------------------------------------- PLOTTING
-
-import plotly.graph_objects as go
-
-
-def plot_corr(corr0):
-    fig = go.Figure(
-        data=go.Heatmap(
-            z=corr0,
-            x=corr0.index.astype(str),
-            y=corr0.columns.astype(str),
-            colorscale='Viridis'
-            )
-        )
-    fig.update_layout(
-        title='Correlation Matrix',
-        width=600,
-        height=600,
-        # template='presentation',
-        )
-    fig.show()
-
-
-def plot_labels(series, bins):
-    series = series.squeeze()
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=series.index, y=series, mode='lines', line=dict(color='black', width=1)))
-    fig.add_trace(go.Scatter(x=bins['bin'].index[bins['bin'] == 1], y=series.loc[bins.index].loc[bins['bin'] == 1], name='bin = 1', mode='markers', line=dict(color='green', width=2)))
-    fig.add_trace(go.Scatter(x=bins['bin'].index[bins['bin'] == -1], y=series.loc[bins.index].loc[bins['bin'] == -1], name='bin = -1', mode='markers', line=dict(color='red', width=2)))
-    # fig.add_trace(go.Scatter(x=bins['bin'].index[bins['bin'] == 0], y=series.loc[bins.index].loc[bins['bin'] == 0], name='bin = 0', mode='markers', line=dict(color='blue', width=2)))
-    fig.update_layout(
-        title='Bins',
-        yaxis_title='Return',
-        # xaxis_rangeslider_visible=True,
-        xaxis_title='Date',
-        showlegend=False,
-    )
-    fig.update_traces(marker=dict(size=5))
-    fig.show()
-
-
-def plot_featImp(imp, title, width, height):
-    imp_sorted = imp.copy()
-    imp_sorted.sort_values(by='mean', ascending=True, inplace=True)
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=imp_sorted['mean'],
-                        y=imp_sorted.index,
-                        error_x=dict(
-                            type='data',
-                            symmetric=True,
-                            array=imp_sorted['std']
-                            ),
-                        orientation='h'))
-    fig.update_layout(
-        title=title,
-        xaxis_title="FeatImp mean with standard deviation",
-        yaxis_title="Features",
-        height=height,
-        width=width, 
-    )
-    fig.show()
-
-
-def plotMinFFD(df0, plot):
-    from statsmodels.tsa.stattools import adfuller
-
-    # path,instName='./','ES1_Index_Method12'
-
-    out = pd.DataFrame(columns=['adfStat','pVal','lags','nObs','95% conf','corr'])
-
-    # df0=pd.read_csv(path+instName+'.csv',index_col=0,parse_dates=True)
-    df1=df0.copy(deep=True)
-    df1.columns=['Close']
-
-    for d in tqdm(np.linspace(0,1,11)):
-        # df1=np.log(df0[['Close']]).resample('1D').last() # downcast to daily obs
-        df2=fracDiff_FFD(df1,d,thres=.01)
-        corr=np.corrcoef(df1.loc[df2.index,'Close'],df2['Close'])[0,1]
-        df2=adfuller(df2['Close'],maxlag=1,regression='c',autolag=None)
-        out.loc[d]=list(df2[:4])+[df2[4]['5%']]+[corr] # with critical value
-
-    # out.to_csv(path+instName+'_testMinFFD.csv')
-    # out[['adfStat','corr']].plot(secondary_y='adfStat')
-    # mpl.axhline(out['95% conf'].mean(),linewidth=1,color='r',linestyle='dotted')
-    # mpl.savefig(path+instName+'_testMinFFD.png')
-
-    if plot is True:
-        adfstats = out
-        from plotly.subplots import make_subplots
-        fig = go.Figure()
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Scatter(x=adfstats.index, y=adfstats['corr'], name='Correlation'), secondary_y=True)
-        fig.add_trace(go.Scatter(x=adfstats.index, y=adfstats['adfStat'], name='ADF Stat'), secondary_y=False)
-        # add axhline at 95%
-        fig.add_shape(type="line", x0=0, y0=adfstats['95% conf'].mean(), x1=1, y1=adfstats['95% conf'].mean(), line=dict(color="Black",width=1,dash="dot"), secondary_y=False)
-        fig.update_layout(title='ADF Stat and Correlation', xaxis_title='d', yaxis_title='Value', width=800, height=600)
-        fig.show()
-    
-    return out

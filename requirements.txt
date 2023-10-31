@@ -1,0 +1,10 @@
+plotly
+scikit-learn
+matplotlib
+pandas
+numpy
+tqdm
+statsmodels
+refinitiv.data
+SciencePlots # https://github.com/garrettj403/SciencePlots
+seaborn
