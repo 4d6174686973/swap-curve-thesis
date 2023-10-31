@@ -1,0 +1,40 @@
+{
+    "logs": {
+        "level": "debug",
+        "transports": {
+            "console": {
+                "enabled": false
+            },
+            "file": {
+                "enabled": false,
+                "name": "refinitiv-data-lib.log"
+            }
+        }
+    },
+    "sessions": {
+        "default": "platform.rdp",
+        "platform": {
+            "rdp": {
+                "app-key": "925ce68de26d4c448e73138491048bc11384c873",
+                "username": "",
+                "password": ""
+            },
+            "deployed": {
+                "app-key": "APP KEY",
+                "realtime-distribution-system": {
+                    "url" : "YOUR DEPLOYED HOST:PORT GOES HERE!",
+                    "dacs" : {
+                        "username" : "YOUR DACS ID GOES HERE!",
+                        "application-id" : 256,
+                        "position" : ""
+                    }
+                }
+            }
+        },
+        "desktop": {
+            "workspace": {
+                "app-key": "925ce68de26d4c448e73138491048bc11384c873"
+            }
+        }
+    }
+}
